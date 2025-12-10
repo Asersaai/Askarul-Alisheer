@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: my_tools
+Version: 0.1.0
+Summary: Custom Python utilities with math, text, and helper functions.
+Author-email: Student <student@example.com>
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
