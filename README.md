@@ -139,3 +139,81 @@ interface GigabitEthernet0/0/2
  * display eth-trunk 1 — проверить статус LACP агрегации (для второго задания).
 Подсказать, как настроить клиентские маршрутизаторы (Client1, 2, 3), чтобы протестировать SSH подключение к RT1?
 
+
+Task 3
+Привет! На скриншоте представлена лабораторная работа по настройке удаленного AAA (Authentication, Authorization, Accounting) с использованием протоколов RADIUS и HWTACACS (аналог TACACS+ от Huawei). Судя по синтаксису, это оборудование Huawei (вероятно, эмулятор eNSP).
+В текстовых подсказках на твоей картинке (справа) есть несколько опечаток, допущенных автором задания. Например, в блоке --RADIUS-- предлагается создать шаблон hwtacacs-server template RD, что в корне неверно для RADIUS. Я исправлю эти ошибки и напишу для тебя правильные рабочие команды.
+Ниже приведена полная конфигурация для маршрутизатора R1. Для R2 настройки будут абсолютно идентичными, изменится только IP-адрес интерфейса.
+1. Базовая настройка интерфейса (на примере R1)
+Для начала нужно задать IP-адрес интерфейсу, смотрящему в сторону коммутатора, чтобы у роутера была связь с сервером.
+system-view
+sysname R1
+interface GigabitEthernet 0/0/0
+ ip address 172.16.128.11 255.255.255.0
+ quit
+
+2. Настройка RADIUS (шаблон RD)
+Создаем шаблон для подключения к RADIUS-серверу (IP сервера 172.16.128.10, как указано слева на схеме).
+radius-server template RD
+ radius-server authentication 172.16.128.10 1812
+ radius-server accounting 172.16.128.10 1813
+ radius-server shared-key cipher Huawei123
+ quit
+
+3. Настройка HWTACACS (шаблон HT)
+Создаем шаблон для TACACS+ сервера.
+hwtacacs-server template HT
+ hwtacacs-server authentication 172.16.128.10
+ hwtacacs-server authorization 172.16.128.10
+ hwtacacs-server accounting 172.16.128.10
+ hwtacacs-server shared-key cipher Huawei123
+ quit
+
+4. Настройка AAA (Схемы и Домен)
+Теперь переходим в режим aaa, создаем схемы и привязываем их к домену.
+aaa
+ # Создаем схемы для RADIUS
+ authentication-scheme RADIUS
+  authentication-mode radius local
+ accounting-scheme RADIUS
+  accounting-mode radius
+ quit
+
+ # Создаем схемы для HWTACACS
+ authentication-scheme HWTACACS
+  authentication-mode hwtacacs local
+ authorization-scheme HWTACACS
+  authorization-mode hwtacacs local
+ accounting-scheme HWTACACS
+  accounting-mode hwtacacs
+ quit
+
+Настройка домена:
+В задании указан домен LAB.LOCAL. Важный момент: чтобы протестировать и RADIUS, и HWTACACS, их нужно по очереди привязать к домену (или создать два разных домена).
+Вариант привязки для проверки RADIUS:
+ domain LAB.LOCAL
+  authentication-scheme RADIUS
+  accounting-scheme RADIUS
+  radius-server RD
+  quit
+
+Если захочешь переключить домен на HWTACACS, команды будут такими:
+ domain LAB.LOCAL
+  authentication-scheme HWTACACS
+  authorization-scheme HWTACACS
+  accounting-scheme HWTACACS
+  hwtacacs-server HT
+  quit
+
+5. Команды для тестирования
+После того как серверы на Linux (Debian/Ubuntu) настроены и запущены, ты можешь проверить связь прямо из консоли R1 (в пользовательском режиме):
+Для проверки RADIUS:
+test-aaa user1 Huawei@123 radius-template RD
+
+Для проверки HWTACACS:
+(На картинке в блоке HWTACACS тоже опечатка: там написано radius-template HT, хотя должно быть так):
+test-aaa user1 Huawei@123 hwtacacs-template HT
+
+Хочешь, я также подскажу, какие пакеты и конфигурационные файлы нужно настроить на стороне Linux (Ubuntu/Debian) для поднятия самих серверов FreeRADIUS и tacacs+?
+
+
